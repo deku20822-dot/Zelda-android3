@@ -1,0 +1,53 @@
+
+name: Compilar APK Android
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/build.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "11"
+
+      - name: Preparar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Instalar herramientas
+        run: |
+          sdkmanager "platforms;android-31" \
+            "build-tools;31.0.0" \
+            "ndk;21.4.7075529"
+
+      - name: Extraer código fuente
+        run: |
+          mkdir -p source
+          ZIP=$(find . -maxdepth 1 -name "*.zip" -print -quit)
+          test -n "$ZIP"
+          unzip -q "$ZIP" -d source
+
+      - name: Compilar APK
+        run: |
+          ROOT=$(find source -name gradlew -type f -print -quit)
+          test -n "$ROOT"
+          cd "$(dirname "$ROOT")"
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Guardar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: zelda3-apk
+          path: source/**/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
